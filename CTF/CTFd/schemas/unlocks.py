@@ -1,0 +1,27 @@
+from CTFd.models import Unlocks, ma
+from CTFd.utils import string_types
+
+
+class UnlockSchema(ma.ModelSchema):
+    class Meta:
+        model = Unlocks
+        include_fk = True
+        dump_only = ("id", "date")
+
+    views = {
+        "admin": ["user_id", "target", "team_id", "date", "type", "id"],
+        "user": ["target", "date", "type", "id"],
+    }
+
+    def __init__(self, view=None, *args, **kwargs):
+        if view:
+            if isinstance(view, string_types):
+                kwargs["only"] = self.views[view]
+            elif isinstance(view, list):
+                # TODO: CTFd 4.0 Passing a list of fields to UnlockSchema as the view will be removed
+                print(
+                    "Passing a list of fields to UnlockSchema will be removed in CTFd 4.0. Please pass a view name instead."
+                )
+                kwargs["only"] = view
+
+        super(UnlockSchema, self).__init__(*args, **kwargs)

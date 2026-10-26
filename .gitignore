@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.data/
+node_modules/
+dist/
+*.pem
+*.key
+*.db
+*.sqlite
+*.sql
+*.log
+uploads/
+terraform.tfstate*
+.terraform/
+.DS_Store

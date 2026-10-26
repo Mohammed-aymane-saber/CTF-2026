@@ -1,0 +1,35 @@
+from CTFd.models import Tokens, ma
+from CTFd.utils import string_types
+
+
+class TokenSchema(ma.ModelSchema):
+    class Meta:
+        model = Tokens
+        include_fk = True
+        dump_only = ("id", "expiration", "type")
+
+    views = {
+        "admin": [
+            "id",
+            "type",
+            "user_id",
+            "created",
+            "expiration",
+            "description",
+            "value",
+        ],
+        "user": ["id", "type", "created", "expiration", "description"],
+    }
+
+    def __init__(self, view=None, *args, **kwargs):
+        if view:
+            if isinstance(view, string_types):
+                kwargs["only"] = self.views[view]
+            elif isinstance(view, list):
+                # TODO: CTFd 4.0 Passing a list of fields to TokenSchema as the view will be removed
+                print(
+                    "Passing a list of fields to TokenSchema will be removed in CTFd 4.0. Please pass a view name instead."
+                )
+                kwargs["only"] = view
+
+        super(TokenSchema, self).__init__(*args, **kwargs)
