@@ -20,7 +20,7 @@ export default function Team() {
         // Parallel data fetch
         const [meData, teamData, solvesData] = await Promise.all([
           getMe(),
-          fetchTeamData().catch(e => {
+          fetchTeamData().catch(_e => {
             // If user has no team, this endpoint returns 404 or similar error.
             return null; 
           }),

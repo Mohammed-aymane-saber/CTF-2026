@@ -7,7 +7,7 @@ import {
   useNavigate,
   Navigate,
 } from 'react-router-dom';
-import { fetchCsrfNonce, apiFetch, logoutHunter, checkAuth, getMe } from './api';
+import { fetchCsrfNonce, logoutHunter, checkAuth, getMe } from './api';
 import Login from './Login';
 
 import Challenges from './Challenges';

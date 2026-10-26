@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { fetchChallenges, apiFetch } from './api';
+import { apiFetch } from './api';
 import ChallengeModal from './ChallengeModal';
 import FirstBloodOverlay from './FirstBloodOverlay';
 
