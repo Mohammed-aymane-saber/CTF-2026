@@ -66,8 +66,8 @@ Une branche par phase, une pull request par branche, relue avant fusion dans `ma
 |---|---|---|---|
 | 0 | n/a | Audit du dépôt neuf, CTFd 3.8.9 vérifié | Fait |
 | 1 | `phase-1-lockfile` | `package-lock.json`, mise à jour de Vite et React Router (correctifs `npm audit`) | Fait |
-| 2 | `phase-2-remove-puzzle` | Retrait du puzzle dans le frontend | À faire |
-| 3 | `phase-3-frontend-hardening` | DOMPurify, polices locales, Node LTS, `npm ci`, ESLint | À faire |
+| 2 | `phase-2-remove-puzzle` | Retrait du puzzle dans le frontend | Fait |
+| 3 | `phase-3-frontend-hardening` | DOMPurify, polices locales, Node LTS, `npm ci`, ESLint | En cours |
 | 4 | `phase-4-nginx-split` | `public.conf` (liste blanche) et `admin.conf` (local uniquement) | À faire |
 | 5 | `phase-5-docker` | Compose de production, workers, secrets, test de charge | À faire |
 | 6 | `phase-6-ci` | GitHub Actions : lint, audit, gitleaks, Trivy, Dependabot | À faire |
