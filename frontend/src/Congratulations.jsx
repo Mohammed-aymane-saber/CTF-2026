@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 /* ---------------------------------------------------------
    CONGRATULATIONS PAGE
-   Full-screen cinematic celebration when the puzzle
-   is 100% reconstructed.
+   Full-screen cinematic celebration for mission completion.
    --------------------------------------------------------- */
 
 /* Individual confetti particle */
