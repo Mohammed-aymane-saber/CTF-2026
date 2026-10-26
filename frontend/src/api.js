@@ -240,28 +240,3 @@ export async function fetchTeamSolves() {
   const json = await res.json();
   return json.data ?? [];
 }
-
-/**
- * Fetch the current user's team awards.
- */
-export async function fetchTeamAwards() {
-  const res = await apiFetch('/api/v1/teams/me/awards');
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  return json.data ?? [];
-}
-
-/**
- * Claim a puzzle piece.
- */
-export async function claimPuzzlePiece(challengeId) {
-  const res = await apiFetch('/api/v1/puzzle/claim', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ challenge_id: challengeId }),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
-  if (!json.success) throw new Error(json.message || 'Claim failed');
-  return json;
-}

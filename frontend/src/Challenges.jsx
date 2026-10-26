@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { fetchChallenges, apiFetch, fetchTeamAwards, claimPuzzlePiece } from './api';
+import { fetchChallenges, apiFetch } from './api';
 import ChallengeModal from './ChallengeModal';
 import FirstBloodOverlay from './FirstBloodOverlay';
 
@@ -24,10 +24,8 @@ function catColor(category) {
 /* ---------------------------------------------------------
    CHALLENGE CARD
    --------------------------------------------------------- */
-function ChallengeCard({ challenge, onSelect, isFirstBlood, isClaimed, onClaim }) {
+function ChallengeCard({ challenge, onSelect, isFirstBlood }) {
   const { name, value, category, difficulty, solved_by_me, tags } = challenge;
-  const [isClaiming, setIsClaiming] = useState(false);
-  const [claimError, setClaimError] = useState(null);
   
   // Logic for New & Mystery
   const isNew = tags?.some(t => t.value.toLowerCase() === 'new');
@@ -80,31 +78,10 @@ function ChallengeCard({ challenge, onSelect, isFirstBlood, isClaimed, onClaim }
       <div className="card-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', zIndex: 3, position: 'relative' }}>
         <div>
           <span className="card-pts" style={{ color }}>{value} pts</span>
-          {claimError && <div className="text-xs text-red mt-xs" style={{ whiteSpace: 'nowrap' }}>{claimError}</div>}
         </div>
-        {solved_by_me && !isClaimed && (
-          <button 
-            className="btn-claim-fragment"
-            disabled={isClaiming}
-            onClick={async (e) => {
-              e.stopPropagation();
-              setIsClaiming(true);
-              setClaimError(null);
-              try {
-                await onClaim(challenge);
-              } catch (err) {
-                setClaimError(err.message);
-                setIsClaiming(false);
-              }
-            }}
-          >
-            {isClaiming ? "TRANSMITTING..." : "CLAIM FRAGMENT"}
-          </button>
-        )}
       </div>
 
-      {solved_by_me && isClaimed && <div className="card-solved-stamp text-green" style={{ textShadow: '0 0 5px var(--clr-green)' }}>FRAGMENT SECURED</div>}
-      {solved_by_me && !isClaimed && <div className="card-solved-stamp">CAPTURED</div>}
+      {solved_by_me && <div className="card-solved-stamp text-green" style={{ textShadow: '0 0 5px var(--clr-green)' }}>CAPTURED</div>}
     </div>
   );
 }
@@ -181,15 +158,9 @@ export default function Challenges() {
   const [filters, setFilters] = useState({
     category: 'All', difficulty: 'All', hideSolved: false, search: '',
   });
-  const [claimedPieces, setClaimedPieces] = useState(new Set());
-  const [claimOverlay, setClaimOverlay] = useState(null);
-
   const load = useCallback(async () => {
     try {
-      const [res, awardsRes] = await Promise.all([
-        apiFetch('/api/v1/challenges'),
-        fetchTeamAwards().catch(() => []) // Handle case gracefully if no team or unauthenticated
-      ]);
+      const res = await apiFetch('/api/v1/challenges');
       
       // Check if we got HTML instead of JSON (typical for redirects to login)
       const contentType = res.headers.get('content-type') || '';
@@ -213,12 +184,6 @@ export default function Challenges() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setChallenges(json.data ?? []);
-      
-      const claimedIds = new Set(
-        awardsRes.filter(a => a.category === 'puzzle').map(a => parseInt(a.name.replace('puzzle_piece_', '')))
-      );
-      setClaimedPieces(claimedIds);
-      
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -249,15 +214,6 @@ export default function Challenges() {
     // Reload all challenges to get recalculated dynamic values
     setTimeout(() => load(), 500);
   }, [load]);
-
-  const handleClaim = useCallback(async (challenge) => {
-    await claimPuzzlePiece(challenge.id);
-    setClaimedPieces(prev => new Set([...prev, challenge.id]));
-    setClaimOverlay(challenge);
-    setTimeout(() => {
-      setClaimOverlay(null);
-    }, 1500);
-  }, []);
 
   // --- Filter logic ---
   const visible = challenges.filter(c => {
@@ -303,23 +259,6 @@ export default function Challenges() {
         />
       )}
 
-      {/* Full-screen Claim Overlay */}
-      {claimOverlay && (
-        <div className="claim-overlay">
-          <div className="claim-overlay-content">
-            <div className="claim-overlay-piece">
-              {/* PUZZLE MAPPING — verify challenge IDs before event day.
-                  piece_${claimOverlay.id}.png assumes challenge ID === piece number.
-                  Run: docker-compose exec ctfd python check_puzzle_mapping.py */}
-              <img src={`/puzzle/piece_${claimOverlay.id}.png`} alt={`Piece ${claimOverlay.id}`} />
-            </div>
-            <h2 className="text-display text-green claim-overlay-text">
-              FRAGMENT SECURED &mdash; SIGNAL RECONSTRUCTED
-            </h2>
-          </div>
-        </div>
-      )}
-
       {/* Challenge Detail Modal */}
       {selected && (
         <ChallengeModal
@@ -355,8 +294,6 @@ export default function Challenges() {
                 challenge={c}
                 onSelect={setSelected}
                 isFirstBlood={firstBloods.has(c.id)}
-                isClaimed={claimedPieces.has(c.id)}
-                onClaim={handleClaim}
               />
             ))}
           </div>

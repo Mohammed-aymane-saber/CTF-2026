@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchTeamData, fetchTeamSolves, fetchChallenges, fetchTeamAwards, getMe, apiFetch } from './api';
+import { fetchTeamData, fetchTeamSolves, getMe, apiFetch } from './api';
 
 export default function Team() {
   const navigate = useNavigate();
@@ -12,24 +12,19 @@ export default function Team() {
   const [captainId, setCaptainId] = useState(null);
   const [me, setMe] = useState(null);
   
-  const [pieces, setPieces] = useState([]);
-  const [claimedCount, setClaimedCount] = useState(0);
-
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
         
         // Parallel data fetch
-        const [meData, teamData, solvesData, challengesData, awardsData] = await Promise.all([
+        const [meData, teamData, solvesData] = await Promise.all([
           getMe(),
           fetchTeamData().catch(e => {
             // If user has no team, this endpoint returns 404 or similar error.
             return null; 
           }),
-          fetchTeamSolves().catch(() => []),
-          fetchChallenges().catch(() => []),
-          fetchTeamAwards().catch(() => [])
+          fetchTeamSolves().catch(() => [])
         ]);
 
         setMe(meData);
@@ -94,35 +89,6 @@ export default function Team() {
         const memberList = Object.values(solveCounts).sort((a, b) => b.count - a.count);
         setMembers(memberList);
 
-        // Process Puzzle Grid
-        // 1. Filter awards for puzzle category
-        const puzzleAwards = awardsData.filter(a => a.category === 'puzzle' || (a.name && a.name.startsWith('puzzle_piece_')));
-        
-        // 2. Map challenges to pieces (Sort by ID to ensure row-major order: 1-5, 6-10, etc.)
-        let cCount = 0;
-        const sortedChallenges = [...challengesData].sort((a, b) => a.id - b.id);
-        const gridPieces = sortedChallenges.map(ch => {
-          const isSolved = ch.solved_by_me;
-          const awardName = `puzzle_piece_${ch.id}`;
-          const hasAward = puzzleAwards.some(a => a.name === awardName);
-
-          let state = 'locked';
-          if (isSolved && hasAward) {
-            state = 'claimed';
-            cCount++;
-          } else if (isSolved && !hasAward) {
-            state = 'claimable';
-          }
-
-          return {
-            id: ch.id,
-            name: ch.name,
-            state: state
-          };
-        });
-
-        setClaimedCount(cCount);
-        setPieces(gridPieces);
         setError(null);
 
       } catch (err) {
@@ -221,63 +187,6 @@ export default function Team() {
                 );
               })}
             </ul>
-          </div>
-        </section>
-
-        {/* Section 2 — Puzzle Grid */}
-        <section className="puzzle-section animate-in" style={{ animationDelay: '0.1s' }}>
-          <div className="panel">
-            <div className="flex justify-between items-center mb-lg" style={{ borderBottom: '1px solid var(--clr-border)', paddingBottom: '1rem' }}>
-              <h2 className="text-display" style={{ fontSize: '1.5rem' }}>SIGNAL RECONSTRUCTION</h2>
-              <div className="progress-indicator text-right">
-                <span className="text-display text-cyan" style={{ fontSize: '1.2rem', textShadow: '0 0 8px var(--clr-cyan-glow)' }}>
-                  {claimedCount} / {pieces.length || 0}
-                </span><br />
-                <span className="text-dim text-xs text-upper" style={{ letterSpacing: '2px' }}>FRAGMENTS RECONSTRUCTED</span>
-              </div>
-            </div>
-
-            {pieces.length > 0 && claimedCount === pieces.length && (
-              <div className="completion-banner">
-                <h2 className="text-display text-green mb-sm" style={{ fontSize: '2rem', textShadow: '0 0 15px var(--clr-green-glow)' }}>
-                  SIGNAL RECONSTRUCTED &mdash; ECLIPSE PREVENTED
-                </h2>
-                <p className="text-dim text-upper" style={{ letterSpacing: '2px' }}>
-                  YOUR TEAM HAS CAPTURED ALL SIGNAL FRAGMENTS
-                </p>
-                <button
-                  className="btn-victory"
-                  onClick={() => navigate('/congratulations')}
-                >
-                  CLAIM YOUR VICTORY &rarr;
-                </button>
-              </div>
-            )}
-
-            {pieces.length === 0 ? (
-              <div className="text-center text-dim mt-xl mb-xl">NO FRAGMENTS DETECTED</div>
-            ) : (
-              <div className="puzzle-grid">
-                {pieces.map(piece => (
-                  <div key={piece.id} className={`puzzle-piece piece-${piece.state}`}>
-                    {/* PUZZLE MAPPING — verify challenge IDs before event day.
-                        piece_${piece.id}.png assumes challenge ID === piece number.
-                        Run: docker-compose exec ctfd python check_puzzle_mapping.py */}
-                    <img src={`/puzzle/piece_${piece.id}.png`} alt={`Piece ${piece.id}`} className="piece-image" />
-                    {piece.state === 'claimed' && (
-                      <div className="piece-content">
-                        <span className="piece-id">#{piece.id}</span>
-                      </div>
-                    )}
-                    {piece.state === 'claimable' && (
-                      <div className="piece-content">
-                        <span className="piece-ready">READY</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </section>
 
