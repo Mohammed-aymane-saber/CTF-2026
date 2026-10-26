@@ -1,15 +1,15 @@
 # Stage 1: Build React + Vite app
-FROM node:18-alpine AS build
+FROM node:22.14.0-alpine3.21 AS build
 
 WORKDIR /app
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
 RUN npm run build
 
 # Stage 2: Serve with Nginx (with correct MIME types)
-FROM nginx:alpine
+FROM nginx:1.27.4-alpine
 
 # Remove default config
 RUN rm /etc/nginx/conf.d/default.conf
