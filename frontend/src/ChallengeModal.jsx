@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchChallengeDetail, submitFlag, fetchFirstSolve, getMe } from './api';
+import { sanitizeHtml } from './utils/sanitize';
 
 function challengeFileLabel(fileUrl) {
   if (typeof fileUrl !== 'string') return 'attachment';
@@ -114,7 +115,7 @@ export default function ChallengeModal({ challenge, isFirstBlood, onClose, onSol
           ) : detail?.description ? (
             <div
               className="challenge-description"
-              dangerouslySetInnerHTML={{ __html: detail.description }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.description) }}
             />
           ) : (
             <p className="text-dim text-sm">[No description provided]</p>
