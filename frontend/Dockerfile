@@ -40,6 +40,16 @@ server {\n\
     }\n\
 \n\
     # SPA fallback — all other routes serve index.html\n\
+    location ^~ /files {\n\
+        proxy_pass http://ctfd:8000;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Host $host;\n\
+        proxy_set_header X-Real-IP $remote_addr;\n\
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
+        proxy_set_header X-Forwarded-Proto $scheme;\n\
+        proxy_redirect off;\n\
+    }\n\
+\n\
     location / {\n\
         try_files $uri $uri/ /index.html;\n\
         add_header Cache-Control "no-cache";\n\
