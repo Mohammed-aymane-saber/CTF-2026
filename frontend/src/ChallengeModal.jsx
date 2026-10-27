@@ -80,6 +80,9 @@ export default function ChallengeModal({ challenge, isFirstBlood, onClose, onSol
       <div
         className={`modal-panel${isFirstBlood ? ' modal-first-blood' : ''}`}
         onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="challenge-modal-title"
       >
         {/* Close */}
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
@@ -92,7 +95,7 @@ export default function ChallengeModal({ challenge, isFirstBlood, onClose, onSol
             </span>
             {isFirstBlood && <span className="fb-card-badge" style={{ position: 'static' }}>🩸 FIRST BLOOD</span>}
           </div>
-          <h2 className="modal-title">{challenge.name}</h2>
+          <h2 id="challenge-modal-title" className="modal-title">{challenge.name}</h2>
           <div className="flex gap-lg mt-sm items-center">
             <span className="text-display" style={{ color: 'var(--clr-green)', fontSize: '1.3rem' }}>
               {detail?.value ?? challenge.value} pts
