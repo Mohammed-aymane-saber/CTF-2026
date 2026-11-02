@@ -21,6 +21,9 @@ server {\n\
     root /usr/share/nginx/html;\n\
     index index.html;\n\
 \n\
+    server_tokens off;\n\
+    proxy_hide_header Server;\n\
+\n\
     # Serve static assets with correct MIME types and long cache\n\
     location ~* \\.(?:js|mjs)$ {\n\
         add_header Content-Type "application/javascript; charset=utf-8";\n\
