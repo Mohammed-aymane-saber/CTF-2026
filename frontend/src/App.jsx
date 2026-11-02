@@ -7,7 +7,7 @@ import {
   useNavigate,
   Navigate,
 } from 'react-router-dom';
-import { fetchCsrfNonce, logoutHunter, checkAuth, getMe } from './api';
+import { fetchCsrfNonce, logoutHunter, checkAuth } from './api';
 import Login from './Login';
 
 import Challenges from './Challenges';
@@ -30,8 +30,8 @@ function ProtectedRoute({ children }) {
 
   if (status === 'pending') {
     return (
-      <div className="center-screen animate-flicker" style={{ minHeight: '100vh' }}>
-        <h2 className="text-display text-dim" style={{ letterSpacing: '6px' }}>
+      <div className="center-screen boot-screen">
+        <h2 className="text-display text-dim boot-title">
           VERIFYING<span className="loading-dots"> </span>
         </h2>
       </div>
@@ -49,28 +49,23 @@ function ProtectedRoute({ children }) {
    NAVBAR COMPONENT — with mobile hamburger
    --------------------------------------------------------- */
 function Navbar({ onLogout }) {
-  const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    getMe().then(me => {
-      if (me && me.type === 'admin') setIsAdmin(true);
-    });
-  }, []);
 
   // Close menu on route change
   const handleNavClick = () => setMenuOpen(false);
 
   return (
-    <nav className="navbar">
-      <div className="container">
+    <aside className={`app-sidebar${menuOpen ? ' nav-open' : ''}`}>
+      <div className="sidebar-inner">
         <NavLink to="/" className="nav-brand" onClick={handleNavClick}>
-          ECLIPSE<span>CTF</span>
+          <span className="brand-mark" aria-hidden="true">◐</span>
+          <span>ECLIPSE<small>CTF / CORONA</small></span>
         </NavLink>
+        <div className="sidebar-kicker">OPERATOR CONSOLE</div>
 
         {/* Hamburger toggle */}
         <button
-          className={`hamburger ${menuOpen ? 'is-active' : ''}`}
+          className={`hamburger sidebar-toggle ${menuOpen ? 'is-active' : ''}`}
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle navigation"
           aria-expanded={menuOpen}
@@ -80,14 +75,14 @@ function Navbar({ onLogout }) {
           <span className="hamburger-line" />
         </button>
 
-        <ul className={`nav-links ${menuOpen ? 'nav-open' : ''}`}>
+        <ul className="nav-links">
           <li>
             <NavLink
               to="/challenges"
               className={({ isActive }) => (isActive ? 'active' : '')}
               onClick={handleNavClick}
             >
-              Challenges
+              <span className="nav-index">01</span>Challenges
             </NavLink>
           </li>
           <li>
@@ -96,7 +91,7 @@ function Navbar({ onLogout }) {
               className={({ isActive }) => (isActive ? 'active' : '')}
               onClick={handleNavClick}
             >
-              Scoreboard
+              <span className="nav-index">02</span>Scoreboard
             </NavLink>
           </li>
           <li>
@@ -105,30 +100,23 @@ function Navbar({ onLogout }) {
               className={({ isActive }) => (isActive ? 'active' : '')}
               onClick={handleNavClick}
             >
-              MY SIGNAL CELL
+              <span className="nav-index">03</span>MY SIGNAL CELL
             </NavLink>
           </li>
-          {isAdmin && (
-            <li>
-              <a href="/admin" className="text-dim" style={{ textDecoration: 'none', fontSize: '0.8rem', letterSpacing: '2px', alignSelf: 'center' }}>
-                Admin
-              </a>
-            </li>
-          )}
           {onLogout && (
             <li>
               <button
                 onClick={() => { onLogout(); handleNavClick(); }}
-                className="btn btn-danger"
-                style={{ padding: '0.3rem 0.8rem', fontSize: '0.7rem' }}
+                className="btn btn-quiet"
               >
-                Logout
+                Sign out
               </button>
             </li>
           )}
         </ul>
+        <div className="sidebar-footer"><span className="status-dot" /> GATEWAY ONLINE</div>
       </div>
-    </nav>
+    </aside>
   );
 }
 
@@ -140,8 +128,11 @@ function LandingPage() {
 
   return (
     <div className="landing-page">
-      {/* Animated background grid */}
-      <div className="landing-grid" />
+      <div className="landing-orbit" aria-hidden="true">
+        <div className="orbit-core" />
+        <div className="orbit-ring orbit-ring-one" />
+        <div className="orbit-ring orbit-ring-two" />
+      </div>
 
       {/* Radial glow effects */}
       <div className="landing-glow landing-glow-1" />
@@ -163,7 +154,7 @@ function LandingPage() {
       </div>
 
       {/* Main content */}
-      <div className="landing-content">
+      <div className="landing-content app-content">
         {/* Status indicator */}
         <div className="landing-status animate-in">
           <span className="landing-status-dot" />
@@ -171,7 +162,8 @@ function LandingPage() {
         </div>
 
         {/* Logo */}
-        <div className="landing-logo animate-in" style={{ animationDelay: '0.1s' }}>
+        <div className="landing-logo animate-in delay-1">
+          <p className="eyebrow">ECL / 2026</p>
           <h1 className="landing-title">ECLIPSE</h1>
           <div className="landing-subtitle">
             <span className="landing-line" />
@@ -181,22 +173,22 @@ function LandingPage() {
         </div>
 
         {/* Tagline */}
-        <p className="landing-tagline animate-in" style={{ animationDelay: '0.2s' }}>
+        <p className="landing-tagline animate-in delay-2">
           Decode the signals. Capture the fragments. Prevent the Eclipse.
         </p>
 
         {/* CTA Buttons */}
-        <div className="landing-actions animate-in" style={{ animationDelay: '0.3s' }}>
+        <div className="landing-actions animate-in delay-3">
           <button className="btn btn-primary btn-lg" onClick={() => navigate('/challenges')}>
             &gt; ACCESS CHALLENGES
           </button>
-          <button className="btn btn-cyan btn-lg" onClick={() => navigate('/scoreboard')}>
+          <button className="btn btn-secondary btn-lg" onClick={() => navigate('/scoreboard')}>
             &gt; VIEW SCOREBOARD
           </button>
         </div>
 
         {/* Footer status */}
-        <div className="landing-footer animate-in" style={{ animationDelay: '0.4s' }}>
+        <div className="landing-footer animate-in delay-4">
           <div className="landing-footer-line">
             <span className="text-green">▸</span> Gateway: <span className="text-green">ACTIVE</span>
           </div>
@@ -221,8 +213,8 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="center-screen animate-flicker" style={{ minHeight: '100vh' }}>
-        <h2 className="text-display text-dim" style={{ letterSpacing: '6px' }}>
+      <div className="center-screen boot-screen">
+        <h2 className="text-display text-dim boot-title">
           BOOTING<span className="loading-dots"> </span>
         </h2>
       </div>
@@ -257,14 +249,16 @@ function AppRoutes({ onLogout }) {
             <ProtectedRoute>
               <>
                 <Navbar onLogout={() => onLogout(navigate)} />
-                <Routes>
+                <main className="app-main">
+                  <Routes>
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/challenges" element={<Challenges />} />
                   <Route path="/scoreboard" element={<Scoreboard />} />
                   <Route path="/team" element={<Team />} />
                   <Route path="/congratulations" element={<Congratulations />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                  </Routes>
+                </main>
               </>
             </ProtectedRoute>
           }

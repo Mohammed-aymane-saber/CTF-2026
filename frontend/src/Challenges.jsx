@@ -51,7 +51,7 @@ function ChallengeCard({ challenge, onSelect, isFirstBlood }) {
       onClick={() => onSelect(challenge)}
       role="button"
       tabIndex={0}
-      onKeyDown={e => e.key === 'Enter' && onSelect(challenge)}
+      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect(challenge))}
     >
       {isFirstBlood && <span className="fb-card-badge">🩸</span>}
       
