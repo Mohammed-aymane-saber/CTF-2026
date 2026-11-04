@@ -26,7 +26,7 @@ pydantic==1.6.2
 WTForms==2.3.1
 python-geoacumen-city==2023.4.15
 maxminddb==1.5.4
-tenacity==9.1.2
+tenacity==9.2.1
 nh3==0.3.0
 freezegun==1.5.5
 Flask-Babel==2.0.0
