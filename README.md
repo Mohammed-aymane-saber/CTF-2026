@@ -19,18 +19,28 @@ npm run dev
 Every pull request and every push to `main` runs the GitHub Actions workflow in
 `.github/workflows/ci.yml`. It installs dependencies from the committed lockfiles,
 checks the frontend with ESLint and Vite, runs the CTFd tests and Bandit, builds
-the CTFd container, audits frontend production dependencies, and scans the
-repository for committed secrets. On pushes to `main`, it publishes the
+the CTFd containers, audits frontend production dependencies, scans the
+repository and built images with Trivy, reviews dependency changes, runs an
+OWASP ZAP baseline scan against the local CTFd environment, and scans the
+repository for committed secrets. On pushes to `main`, it can publish the
 `aymanesbe3/eclipse-ctfd` and `aymanesbe3/eclipse-frontend` images with both
-`latest` and commit-SHA tags. Dependabot keeps npm, Python, and Actions
-dependencies up to date.
+`latest` and commit-SHA tags. Publishing uses the protected GitHub
+`production` environment, so it can require an approval before images are
+released. A manual `workflow_dispatch` promotion is also available from
+`main`. Dependabot keeps npm, Python, and Actions dependencies up to date.
 
-To enable publishing, add these repository secrets in GitHub under
-**Settings → Secrets and variables → Actions**:
+To enable publishing, add these secrets to the GitHub `production` environment
+under **Settings → Environments → production → Environment secrets**:
 
 - `DOCKERHUB_USERNAME`: `aymanesbe3`
 - `DOCKERHUB_TOKEN`: a Docker Hub Personal Access Token with read/write access
   to the two repositories.
+
+For production readiness, configure the `production` environment in GitHub
+under **Settings → Environments**. Add required reviewers, restrict deployment
+branches to `main`, and keep production-only secrets there rather than at the
+repository level. Deploy a commit-SHA image tag or digest in production so a
+deployment can be rolled back to the exact build that passed CI.
 
 Les appels API restent relatifs au domaine courant. Le proxy de développement est défini dans `frontend/vite.config.js`.
 
