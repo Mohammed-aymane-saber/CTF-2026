@@ -20,14 +20,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Also consider the pip removal above
 RUN python -m pip install --no-cache-dir "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
 
-COPY . /opt/CTFd
+COPY requirements.txt /opt/CTFd/requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt \
-    && for d in CTFd/plugins/*; do \
-        if [ -f "$d/requirements.txt" ]; then \
-            pip install --no-cache-dir -r "$d/requirements.txt";\
-        fi; \
-    done \
     && pip install --no-cache-dir --upgrade \
         "jaraco.context>=6.1.0" \
         "msgpack>=1.2.3" \
@@ -35,6 +30,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
         "urllib3>=2.8.0" \
         "wheel>=0.46.2" \
     && python -m pip uninstall -y pip;
+
+COPY . /opt/CTFd
 
 
 FROM python:3.11-slim-bookworm AS release

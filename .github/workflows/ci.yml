@@ -116,8 +116,8 @@ jobs:
           push: false
           load: true
           tags: eclipse-${{ matrix.name }}:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
