@@ -9,7 +9,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Serve with Nginx (with correct MIME types)
-FROM nginx:1.27.4-alpine
+FROM nginx:1.31.8-alpine3.24
 
 # The image setup runs as root; the final Nginx process does not.
 USER root
@@ -108,5 +108,8 @@ RUN chown -R nginx:nginx /usr/share/nginx/html
 USER nginx
 
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
+
 ENTRYPOINT []
 CMD ["nginx", "-g", "daemon off;"]
