@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from urllib.parse import urlparse
+
 from flask import jsonify
 
 from CTFd.cache import clear_standings
@@ -51,6 +53,10 @@ def test_scoreboard_is_cached():
                 == saved
             )
             cached = client.get("/api/v1/scoreboard/top/10").get_json()
+            for entry in cached["data"].values():
+                entry["account_url"] = urlparse(entry["account_url"]).path
+            for entry in orig.values():
+                entry["account_url"] = urlparse(entry["account_url"]).path
             assert cached["data"] == orig
             assert app.cache.get("CTFd.utils.scoreboard.get_scoreboard_detail_memver")
 

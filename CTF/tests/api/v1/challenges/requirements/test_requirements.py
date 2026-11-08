@@ -21,6 +21,7 @@ def test_api_challenges_admins_can_bypass_requirements():
         prereq_id = gen_challenge(app.db).id
         chal_obj = gen_challenge(app.db)
         chal_obj.requirements = {"prerequisites": [prereq_id]}
+        app.db.session.commit()
 
         register_user(app)
         # Confirm that regular users cannot see prerequisites
@@ -74,6 +75,7 @@ def test_api_challenges_challenge_with_requirements():
         prereq_id = gen_challenge(app.db).id
         chal_obj = gen_challenge(app.db)
         chal_obj.requirements = {"prerequisites": [prereq_id]}
+        app.db.session.commit()
         chal_id = chal_obj.id
         # Create a new user which will solve the prerequisite
         register_user(app)
@@ -238,6 +240,7 @@ def test_api_challenges_challenge_with_requirements_no_user():
         prereq_id = gen_challenge(app.db).id
         chal_obj = gen_challenge(app.db)
         chal_obj.requirements = {"prerequisites": [prereq_id]}
+        app.db.session.commit()
         # Create a new user which will solve the prerequisite
         register_user(app)
         # Confirm that only the prerequisite challenge is listed publicly

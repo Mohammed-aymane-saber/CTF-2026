@@ -60,6 +60,12 @@ FakeRequest = namedtuple("FakeRequest", ["form"])
 
 class CTFdTestClient(FlaskClient):
     def open(self, *args, **kwargs):
+        # Flask 3.1 uses ContextVar-based request contexts. The legacy CTFd
+        # tests use multiple clients as nested context managers, which makes
+        # preserved request contexts interfere with each other. Cookies and
+        # sessions remain available without preserving the request context.
+        preserve_context = self.preserve_context
+        self.preserve_context = False
         if kwargs.get("json") is not None:
             with self.session_transaction() as sess:
                 api_key_headers = Headers({"CSRF-Token": sess.get("nonce")})
@@ -68,7 +74,10 @@ class CTFdTestClient(FlaskClient):
                     headers = Headers(headers)
                 headers.extend(api_key_headers)
                 kwargs["headers"] = headers
-        return super(CTFdTestClient, self).open(*args, **kwargs)
+        try:
+            return super(CTFdTestClient, self).open(*args, **kwargs)
+        finally:
+            self.preserve_context = preserve_context
 
 
 class ctftime:
@@ -244,18 +253,17 @@ def register_team(app, name="team", password="password", raise_for_error=True):
 
 
 def login_as_user(app, name="user", password="password", raise_for_error=True):
-    with app.app_context():
-        with app.test_client() as client:
-            client.get("/login")
-            with client.session_transaction() as sess:
-                data = {"name": name, "password": password, "nonce": sess.get("nonce")}
-            client.post("/login", data=data)
-            if raise_for_error:
-                with client.session_transaction() as sess:
-                    assert sess["id"]
-                    assert sess["nonce"]
-                    assert sess["hash"]
-            return client
+    client = app.test_client()
+    client.get("/login")
+    with client.session_transaction() as sess:
+        data = {"name": name, "password": password, "nonce": sess.get("nonce")}
+    client.post("/login", data=data)
+    if raise_for_error:
+        with client.session_transaction() as sess:
+            assert sess["id"]
+            assert sess["nonce"]
+            assert sess["hash"]
+    return client
 
 
 def login_with_mlc(
