@@ -128,6 +128,48 @@ jobs:
           ignore-unfixed: true
           exit-code: 1
 
+      # ZAP runs here, against the image built above, so the CTFd image is
+      # built once per run and no image artifact has to be transferred.
+      - name: Start local CTFd environment from built image
+        if: matrix.name == 'ctfd'
+        run: docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml up -d --no-build
+
+      - name: Wait for CTFd
+        if: matrix.name == 'ctfd'
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://localhost/ > /dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml logs --no-color
+          exit 1
+
+      - name: Run OWASP ZAP baseline scan
+        if: matrix.name == 'ctfd'
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: http://localhost/
+          fail_action: false
+          allow_issue_writing: false
+          artifact_name: zap-report
+
+      - name: Publish ZAP report to job summary
+        if: always() && matrix.name == 'ctfd'
+        shell: bash
+        run: |
+          if [ -f report_md.md ]; then
+            cat report_md.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ZAP report not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Stop local CTFd environment
+        if: always() && matrix.name == 'ctfd'
+        run: docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml down -v --remove-orphans
+
   trivy-filesystem:
     name: Trivy filesystem scan
     runs-on: ubuntu-latest
@@ -152,8 +194,13 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 0
-          format: sarif
-          output: trivy-filesystem.sarif
+          format: json
+          output: trivy-filesystem.json
+
+      # Reuse the single scan result for both the SARIF upload and the gate.
+      - name: Convert Trivy results to SARIF
+        if: always()
+        run: trivy convert --format sarif --output trivy-filesystem.sarif trivy-filesystem.json
 
       - name: Upload Trivy results
         if: always()
@@ -162,16 +209,7 @@ jobs:
           sarif_file: trivy-filesystem.sarif
 
       - name: Enforce Trivy findings
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          scanners: vuln,misconfig,secret
-          skip-files: CTF/CTFd/themes/admin/yarn.lock,CTF/CTFd/themes/core/yarn.lock
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: 1
-          format: table
+        run: trivy convert --format table --severity HIGH,CRITICAL --exit-code 1 trivy-filesystem.json
 
   dependency-review:
     name: Dependency review
@@ -186,42 +224,6 @@ jobs:
         with:
           fail-on-severity: high
 
-  zap:
-    name: OWASP ZAP baseline scan
-    runs-on: ubuntu-latest
-    needs: [frontend, backend]
-    permissions:
-      contents: read
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Start local CTFd environment
-        run: docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml up -d --build
-
-      - name: Wait for CTFd
-        shell: bash
-        run: |
-          for attempt in {1..60}; do
-            if curl --fail --silent http://localhost/ > /dev/null; then
-              exit 0
-            fi
-            sleep 5
-          done
-          docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml logs --no-color
-          exit 1
-
-      - name: Run OWASP ZAP baseline scan
-        uses: zaproxy/action-baseline@v0.15.0
-        with:
-          target: http://localhost/
-          fail_action: false
-          allow_issue_writing: false
-
-      - name: Stop local CTFd environment
-        if: always()
-        run: docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml down -v --remove-orphans
-
   publish:
     name: Publish images to Docker Hub
     if: >-
@@ -229,7 +231,7 @@ jobs:
       (github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && inputs.publish == true))
     runs-on: ubuntu-latest
-    needs: [container, trivy-filesystem, zap, secret-scan]
+    needs: [container, trivy-filesystem, secret-scan]
     environment:
       name: production
     concurrency:

@@ -1,7 +1,12 @@
 # CI-only overrides for the CTFd integration environment.
-# The base compose file bind-mounts the repository read-only. Git records this
-# shell script as a regular file, so invoke it explicitly through bash instead
-# of relying on the executable bit being preserved by the checkout.
+# Run the image already built (and Trivy-scanned) by the CI container job
+# instead of rebuilding it, and drop the base file's read-only source
+# bind mount so the scan targets the image contents, not the checkout.
+# Requires Docker Compose >= 2.24.4 for the !override tag.
 services:
   ctfd:
-    entrypoint: ["/bin/bash", "/opt/CTFd/docker-entrypoint.sh"]
+    image: eclipse-ctfd:ci
+    pull_policy: never
+    volumes: !override
+      - .data/CTFd/logs:/var/log/CTFd
+      - .data/CTFd/uploads:/var/uploads
