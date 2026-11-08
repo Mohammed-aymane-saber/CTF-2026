@@ -31,7 +31,7 @@ nh3==0.3.0
 freezegun==1.5.5
 Flask-Babel==2.0.0
 Pillow==13.0.0
-cffi==1.17.1
+cffi==2.0.0
 cryptography==50.0.0
 six==1.17.0
 urllib3==2.8.0

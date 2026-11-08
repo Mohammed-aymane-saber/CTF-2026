@@ -144,6 +144,11 @@ jobs:
           scan-type: fs
           scan-ref: .
           scanners: vuln,misconfig,secret
+          # These Yarn lockfiles belong to CTFd's optional theme build. The
+          # production CTFd image installs Python requirements only; they are
+          # tracked separately by Dependabot and will be scanned when themes
+          # are built in CI.
+          skip-files: CTF/CTFd/themes/admin/yarn.lock,CTF/CTFd/themes/core/yarn.lock
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 0
@@ -162,6 +167,7 @@ jobs:
           scan-type: fs
           scan-ref: .
           scanners: vuln,misconfig,secret
+          skip-files: CTF/CTFd/themes/admin/yarn.lock,CTF/CTFd/themes/core/yarn.lock
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 1
