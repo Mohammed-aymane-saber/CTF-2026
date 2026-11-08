@@ -9,15 +9,25 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Serve with Nginx (with correct MIME types)
-FROM nginx:1.27.4-alpine
+FROM nginx:1.31.8-alpine3.24
+
+# The image setup runs as root; the final Nginx process does not.
+USER root
 
 # Remove default config
 RUN rm /etc/nginx/conf.d/default.conf
 
+# Relocate the PID file and prepare runtime paths for the unprivileged user.
+RUN sed -i 's#^pid .*$#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf \
+    && sed -i 's#^error_log .*$#error_log /dev/stderr warn;#' /etc/nginx/nginx.conf \
+    && sed -i '/^user /d' /etc/nginx/nginx.conf \
+    && mkdir -p /var/cache/nginx /var/log/nginx /usr/share/nginx/html \
+    && chown -R nginx:nginx /var/cache/nginx /var/log/nginx /usr/share/nginx/html
+
 # Inline Nginx config: SPA fallback + proper MIME types + cache headers
 RUN printf '\
 server {\n\
-    listen 80;\n\
+    listen 8080;\n\
     root /usr/share/nginx/html;\n\
     index index.html;\n\
 \n\
@@ -93,6 +103,13 @@ server {\n\
 # Wipe default assets and copy built app
 RUN rm -rf /usr/share/nginx/html/*
 COPY --from=build /app/dist /usr/share/nginx/html
+RUN chown -R nginx:nginx /usr/share/nginx/html
 
-EXPOSE 80
+USER nginx
+
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
+
+ENTRYPOINT []
 CMD ["nginx", "-g", "daemon off;"]

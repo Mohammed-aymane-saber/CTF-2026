@@ -111,7 +111,7 @@ def test_that_ctfd_can_be_deployed_in_subdir():
             response = c.get("/")
             headers = dict(response.headers)
             assert response.status == "302 FOUND"
-            assert headers["Location"] == "/ctf/?"
+            assert headers["Location"] == "/ctf/"
 
             r = client.get("/challenges")
             assert r.status_code == 200
@@ -138,7 +138,7 @@ def test_that_ctfd_subdir_redirects_work():
             response = c.get("/random", **remote)
             headers = dict(response.headers)
             assert response.status == "302 FOUND"
-            assert headers["Location"] == "/ctf/random?"
+            assert headers["Location"] == "/ctf/random"
 
             # A session cookie should be set on the first request
             response = c.get("/ctf/login", **remote)

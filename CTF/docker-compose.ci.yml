@@ -1,0 +1,7 @@
+# CI-only overrides for the CTFd integration environment.
+# The base compose file bind-mounts the repository read-only. Git records this
+# shell script as a regular file, so invoke it explicitly through bash instead
+# of relying on the executable bit being preserved by the checkout.
+services:
+  ctfd:
+    entrypoint: ["/bin/bash", "/opt/CTFd/docker-entrypoint.sh"]

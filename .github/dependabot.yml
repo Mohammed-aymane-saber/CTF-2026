@@ -5,6 +5,27 @@ updates:
     schedule:
       interval: weekly
 
+  # CTFd themes use Yarn lockfiles. Dependabot's npm updater handles the
+  # package.json/yarn.lock pair and keeps these build-only dependencies
+  # separate from the player-facing frontend.
+  - package-ecosystem: npm
+    directory: /CTF/CTFd/themes/admin
+    schedule:
+      interval: weekly
+    groups:
+      ctfd-admin-theme:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: /CTF/CTFd/themes/core
+    schedule:
+      interval: weekly
+    groups:
+      ctfd-core-theme:
+        patterns:
+          - "*"
+
   - package-ecosystem: pip
     directory: /CTF
     schedule:

@@ -27,7 +27,14 @@ RUN pip install --no-cache-dir -r requirements.txt \
         if [ -f "$d/requirements.txt" ]; then \
             pip install --no-cache-dir -r "$d/requirements.txt";\
         fi; \
-    done;
+    done \
+    && pip install --no-cache-dir --upgrade \
+        "jaraco.context>=6.1.0" \
+        "msgpack>=1.2.3" \
+        "setuptools>=78.1.1" \
+        "urllib3>=2.8.0" \
+        "wheel>=0.46.2" \
+    && python -m pip uninstall -y pip;
 
 
 FROM python:3.11-slim-bookworm AS release
@@ -41,9 +48,11 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# TODO: CTFd 3.9 Update to Python 3.13 as well as update to latest pip and use uv
-# Remove system pip just in case
-RUN /usr/local/bin/python -m pip uninstall -y pip
+# The application dependencies are isolated in /opt/venv. Remove the unused
+# system Python packages from the runtime image so stale package metadata is
+# not shipped and reported by Trivy.
+RUN /usr/local/bin/python -m pip uninstall -y pip \
+    && rm -rf /usr/local/lib/python3.11/site-packages/*
 
 COPY --chown=1001:1001 . /opt/CTFd
 
