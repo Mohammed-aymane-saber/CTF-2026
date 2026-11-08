@@ -122,6 +122,11 @@ class CachingSessionInterface(SessionInterface):
             else:
                 session_id = session.sid
 
+            # Werkzeug 3.x expects cookie values to be strings, while the
+            # signing helper returns bytes for backwards compatibility.
+            if isinstance(session_id, bytes):
+                session_id = session_id.decode("utf-8")
+
             response.set_cookie(
                 app.config["SESSION_COOKIE_NAME"],
                 session_id,
