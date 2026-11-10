@@ -158,7 +158,7 @@ def reset_password(data=None):
                     "reset_password.html", errors=[_l("Please pick a longer password")]
                 )
 
-            password_min_length = int(get_config("password_min_length", default=0))
+            password_min_length = int(get_config("password_min_length", default=8))
             pass_min = len(password) < password_min_length
             if pass_min:
                 return render_template(
@@ -274,7 +274,7 @@ def register():
         valid_email = validators.validate_email(email_address)
         team_name_email_check = validators.validate_email(name)
 
-        password_min_length = int(get_config("password_min_length", default=0))
+        password_min_length = int(get_config("password_min_length", default=8))
         pass_min = len(password) < password_min_length
 
         if get_config("registration_code"):

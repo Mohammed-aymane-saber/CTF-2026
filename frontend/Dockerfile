@@ -34,6 +34,11 @@ server {\n\
     server_tokens off;\n\
     proxy_hide_header Server;\n\
 \n\
+    add_header X-Frame-Options "DENY" always;\n\
+    add_header X-Content-Type-Options "nosniff" always;\n\
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;\n\
+    add_header Content-Security-Policy "default-src '"'"'self'"'"'; frame-ancestors '"'"'none'"'"'" always;\n\
+\n\
     # Serve static assets with correct MIME types and long cache\n\
     location ~* \\.(?:js|mjs)$ {\n\
         add_header Content-Type "application/javascript; charset=utf-8";\n\
