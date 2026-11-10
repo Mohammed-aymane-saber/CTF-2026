@@ -1,3 +1,4 @@
+import base64
 import logging
 
 from CTFd.models import Users, db
@@ -6,7 +7,8 @@ from CTFd.utils.security.auth import generate_user_token
 from tests.helpers import login_as_user
 from tests.plugins.admin_mfa.test_views import clock, code, enroll, nonce, post_verify, relogin  # noqa: F401
 
-RFC_SECRET = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+# RFC 6238 Appendix B public test key, built at runtime (not a real secret).
+RFC_SECRET = base64.b32encode(b"12345678901234567890").decode().rstrip("=")
 
 
 def test_change_password_admin_not_looped(app):
