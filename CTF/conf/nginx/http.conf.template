@@ -17,6 +17,10 @@ http {
   # CTFd login and the admin_mfa plugin (TOTP) still apply behind this.
   # ---------------------------------------------------------------------------
 
+  # The knock secret is a map key (up to 128 chars); the default 64-byte bucket
+  # makes nginx refuse to start with secrets longer than ~50 chars.
+  map_hash_bucket_size 256;
+
   # Allowlisted admin networks (git-ignored; see admin-allow.conf.example).
   # Uses the TCP peer address only: X-Forwarded-For cannot spoof it.
   geo $admin_net {

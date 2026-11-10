@@ -26,7 +26,7 @@ request() {
   local tmp; tmp="$(mktemp -d)"
   status="$(curl -s --max-time 10 --path-as-is -X "$method" -o "$tmp/body" -D "$tmp/headers" \
     -w '%{http_code}' "$@" "$BASE$path")"
-  body="$(cat "$tmp/body")"; headers="$(cat "$tmp/headers")"; rm -rf "$tmp"
+  body="$(cat "$tmp/body" 2>/dev/null)"; headers="$(cat "$tmp/headers" 2>/dev/null)"; rm -rf "$tmp"
 }
 is_nginx_404() { [ "$status" = 404 ] && grep -q '<center>nginx</center>' <<<"$body"; }
 
