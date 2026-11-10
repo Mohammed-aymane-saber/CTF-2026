@@ -67,14 +67,14 @@ def test_static_allowed(app):
 
 def test_verified_session_passes(app):
     client = login_as_user(app, "admin")
-    mark_session_verified(client)
+    mark_session_verified(client, app)
     assert client.get("/admin/challenges").status_code == 200
     assert client.get("/api/v1/challenges").status_code == 200
 
 
 def test_password_change_ends_session(app):
     client = login_as_user(app, "admin")
-    mark_session_verified(client)
+    mark_session_verified(client, app)
     with app.app_context():
         user = Users.query.get(1)
         user.password = "a-brand-new-password"

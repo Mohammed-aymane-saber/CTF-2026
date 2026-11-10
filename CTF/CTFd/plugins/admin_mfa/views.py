@@ -79,7 +79,7 @@ def _safe_next():
 
 
 def _finish_login(user):
-    mark_verified()
+    mark_verified(AdminMfa.query.get(user.id))
     session["nonce"] = generate_nonce()
 
 

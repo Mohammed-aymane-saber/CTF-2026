@@ -13,7 +13,7 @@ PERIOD = 30
 WINDOW = 1
 ISSUER = "Eclipse CTF"
 
-_CODE_RE = re.compile(r"^\d{6}$")
+_CODE_RE = re.compile(r"[0-9]{6}")
 
 
 def generate_secret():
@@ -37,7 +37,7 @@ def verify(secret, code, now=None):
     if not isinstance(code, str):
         return None
     code = re.sub(r"\s+", "", code)
-    if not _CODE_RE.match(code):
+    if not _CODE_RE.fullmatch(code):
         return None
     t = int((time.time() if now is None else now) // PERIOD)
     for counter in range(t - WINDOW, t + WINDOW + 1):
