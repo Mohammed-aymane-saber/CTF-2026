@@ -100,7 +100,14 @@ class FilesystemUploader(BaseUploader):
         return self.store(file_obj, file_path)
 
     def download(self, filename):
-        return send_file(safe_join(self.base_path, filename), as_attachment=True)
+        # Keep the original uploaded basename in the browser download name.
+        # The storage path itself is intentionally opaque.
+        download_name = Path(filename).name
+        return send_file(
+            safe_join(self.base_path, filename),
+            as_attachment=True,
+            download_name=download_name,
+        )
 
     def delete(self, filename):
         location = safe_join(self.base_path, filename)

@@ -14,12 +14,38 @@ function challengeFileLabel(fileUrl) {
   }
 }
 
+async function downloadChallengeFile(href, filename) {
+  const response = await fetch(href, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Download failed (HTTP ${response.status})`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('text/html')) {
+    throw new Error('The server returned HTML instead of the challenge file.');
+  }
+
+  const blobUrl = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(blobUrl);
+}
+
 export default function ChallengeModal({ challenge, isFirstBlood, onClose, onSolve }) {
   const [detail, setDetail]       = useState(null);
   const [loading, setLoading]     = useState(true);
   const [flag, setFlag]           = useState('');
   const [state, setState]         = useState(null); // null|submitting|correct|incorrect|already_solved|ratelimited|error
   const [message, setMessage]     = useState('');
+  const [fileError, setFileError] = useState('');
 
   useEffect(() => {
     fetchChallengeDetail(challenge.id)
@@ -164,13 +190,23 @@ export default function ChallengeModal({ challenge, isFirstBlood, onClose, onSol
                       href={href}
                       title={label}
                       rel="noopener noreferrer"
-                      download
+                      download={label}
+                      onClick={async (event) => {
+                        event.preventDefault();
+                        setFileError('');
+                        try {
+                          await downloadChallengeFile(href, label);
+                        } catch (error) {
+                          setFileError(error.message);
+                        }
+                      }}
                     >
                       <span className="file-icon">📁</span> {label}
                     </a>
                   );
                 })}
               </div>
+              {fileError && <div className="alert alert-error mt-sm">[!] {fileError}</div>}
             </div>
           )}
         </div>
