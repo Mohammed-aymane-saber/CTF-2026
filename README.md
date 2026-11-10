@@ -51,4 +51,21 @@ Les appels API restent relatifs au domaine courant. Le proxy de développement e
 - Le HTML provenant de CTFd est assaini avant rendu dans l'interface.
 - Les polices du frontend sont embarquées localement.
 
+### MFA administrateur (TOTP)
+
+Le plugin `CTF/CTFd/plugins/admin_mfa/` impose un second facteur (code à 6 chiffres d'une application d'authentification) à tout compte admin, avant toute page `/admin` ou appel `/api/v1`. Les joueurs ne sont pas concernés.
+
+- **Premier login admin :** redirection vers `/admin-mfa/setup` (QR code + clé manuelle), puis affichage unique de 10 codes de récupération.
+- **Logins suivants :** code demandé sur `/admin-mfa/verify` (10 essais / 5 min / IP).
+- **Jetons API admin :** refusés (403). Les jetons des joueurs fonctionnent toujours.
+- **Clé de chiffrement :** définir `ADMIN_MFA_ENCRYPTION_KEY` en production :
+  ```bash
+  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+  ```
+  Sans elle, une clé est dérivée de `SECRET_KEY` (HKDF) et un avertissement est journalisé. Changer la clé rend les enrôlements existants illisibles : il faut alors réinitialiser les admins.
+- **Téléphone perdu :** `docker compose exec ctfd python manage.py admin-mfa-reset <email>`. L'admin se réenrôle au prochain login.
+- L'horloge du serveur doit être synchronisée (NTP) : la tolérance n'est que de ±30 s.
+- Ne jamais activer `SAFE_MODE` en production : il désactive tous les plugins, y compris celui-ci.
+- `/admin-mfa/*` doit rester derrière l'accès admin privé, jamais dans la liste blanche du Nginx public.
+
 Le déploiement complet, la séparation public/admin et l'orchestration de production seront documentés dans les phases suivantes.

@@ -93,10 +93,11 @@ def setup():
     secret = crypto.decrypt_secret(current_app, row.secret_enc) if row else None
     if secret is None:
         secret = totp.generate_secret()
+        encrypted = crypto.encrypt_secret(current_app, secret)
         if row is None:
-            row = AdminMfa(user_id=user.id, secret_enc="", enabled=False)
+            row = AdminMfa(user_id=user.id, secret_enc=encrypted, enabled=False)
             db.session.add(row)
-        row.secret_enc = crypto.encrypt_secret(current_app, secret)
+        row.secret_enc = encrypted
         row.set_recovery([])
         db.session.commit()
 
