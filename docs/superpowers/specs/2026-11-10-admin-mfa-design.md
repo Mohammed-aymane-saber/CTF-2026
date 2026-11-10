@@ -83,7 +83,7 @@ UPDATE admin_mfa SET last_counter = :c
 WHERE user_id = :uid AND (last_counter IS NULL OR last_counter < :c)
 ```
 
-The code is accepted only if `rowcount == 1`. Two concurrent requests with the same code cannot both succeed, and a code at or below the last accepted step is rejected.
+It is run with `db.session.execute(...)` and followed immediately by `db.session.commit()`, so the row lock is released and the new counter is visible to other workers right away. The code is accepted only if `rowcount == 1`. On MariaDB/InnoDB a second concurrent UPDATE waits on the row lock and then re-checks the `WHERE` clause, so it matches 0 rows. Two concurrent requests with the same code cannot both succeed, and a code at or below the last accepted step is rejected.
 
 Recovery code consumption uses the same pattern: an update conditioned on the previous `recovery_hashes` value, which retries once if the row changed in between.
 
@@ -94,13 +94,14 @@ Registered with `app.before_request` inside `load(app)`. Plugins load after CTFd
 Decision order:
 
 1. Not authenticated, or not `is_admin()` → **allow** (players and anonymous users are untouched).
-2. `Authorization` header present (CTFd token auth logs the token's user into the session via `login_user`) → **403** JSON `{"success": false, "errors": ["Admin API tokens are disabled; use an MFA-verified session"]}`.
+2. Any `Authorization` header present (`Token …`, `Bearer …` or anything else) → **403** JSON `{"success": false, "errors": ["Admin API tokens are disabled; use an MFA-verified session"]}`.
 3. Endpoint is on the allowlist → **allow**:
    - `admin_mfa.*` (setup, verify)
    - `auth.logout`
-   - `views.static_html` is **not** allowlisted. Only static files are: `views.themes`, `views.themes_beta`, `static`, and plugin asset endpoints.
+   - `views.static_html` is **not** allowlisted. Only static files are: `views.themes`, `views.themes_beta`, `static`, and plugin asset endpoints. CTFd names those after their path (`register_plugin_assets_directory` → endpoint `plugins.<name>.assets`), so the allowlist matches the `plugins.` endpoint prefix.
 4. Session is MFA-verified → **allow**. Verified means `session["admin_mfa_ok"] == {"uid": session["id"], "h": session["hash"]}`.
-   - `session["hash"]` is CTFd's existing `hmac(user.password)` (keyed with `SECRET_KEY`), so the plugin stores nothing password-derived of its own in the cookie. Flask cookies are signed but not encrypted.
+   - `session["hash"]` is CTFd's existing `hmac(user.password)` (keyed with `SECRET_KEY`). CTFd sessions are server-side (`CachingSessionInterface`, stored in Redis), and the cookie only holds the session id. The plugin reuses that value rather than storing its own password-derived data.
+   - OAuth-provisioned users have `password = None`. CTFd's `hmac(None)` still returns a stable digest, so the same binding works for them with no special case.
    - CTFd's `get_current_user()` already logs out a session whose hash no longer matches. The gate calls it before checking, so a password change ends every MFA-verified session right away.
 5. Otherwise:
    - `/api/` paths → **401** JSON `{"success": false, "errors": ["MFA verification required"]}`.
@@ -114,7 +115,8 @@ All forms are POST with CTFd's `nonce` CSRF field and use plain Jinja templates 
 
 - **GET/POST `/admin-mfa/setup`**: only for admins who are not enrolled (enrolled admins are redirected to verify).
   - GET creates or reuses a pending secret (row with `enabled=False`) and shows the inline-SVG QR code plus the manual key.
-  - POST takes a code. If it is valid, the plugin sets `enabled=True` and `last_counter`, generates the recovery codes, marks the session verified, and renders the recovery codes page once. The page has a "continue to admin" link.
+  - POST takes a code. If it is valid, the plugin sets `enabled=True` and `last_counter`, generates the recovery codes, marks the session verified, stores the plaintext codes in `session["_admin_mfa_codes"]` (server-side session), and **redirects (302) to GET `/admin-mfa/setup/done`** (Post-Redirect-Get).
+- **GET `/admin-mfa/setup/done`**: `session.pop("_admin_mfa_codes")` and shows them once with a "continue to admin" link. A refresh does not resubmit the form or show the codes again; it redirects to `/admin`.
 - **GET/POST `/admin-mfa/verify`**: a code field, plus a "use a recovery code" field.
   - On success it marks the session verified, rotates CTFd's `session["nonce"]`, and redirects to the safe `next` or `/admin`.
   - Rate-limited with CTFd's `ratelimit` decorator: 10 POSTs per 5 minutes per IP.
@@ -137,12 +139,12 @@ In Docker: `docker compose exec ctfd flask admin-mfa-reset admin@example.com`.
 1. TOTP matches the RFC 6238 SHA1 test vectors. Codes at ±1 step are accepted, ±2 steps rejected, non-numeric input rejected.
 2. HKDF fallback is deterministic for one `SECRET_KEY` and differs for another. An explicit env key is used when set.
 3. An unenrolled admin is redirected from `/admin/challenges` to `/admin-mfa/setup`.
-4. Full enrolment: setup → valid code → recovery codes shown → `/admin/challenges` returns 200.
+4. Full enrolment: setup → valid code → 302 to `/setup/done` → recovery codes shown once (a second GET does not show them) → `/admin/challenges` returns 200.
 5. An enrolled admin with a fresh login is redirected to verify. A wrong code is rejected and the right one accepted.
 6. Replay: the same code is rejected on a second verify (new session).
 7. A recovery code works once and is rejected the second time.
 8. `/api/v1/challenges` as an unverified admin returns 401 JSON.
-9. An admin API token gets 403. A player API token still works.
+9. An admin API token gets 403 (with both `Token` and `Bearer` prefixes). A player API token still works.
 10. Static/theme asset URLs load for an unverified admin.
 11. Changing the admin's password logs out the MFA-verified session immediately.
 12. Players: login, `/challenges` and the API are unchanged.
