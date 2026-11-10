@@ -1,0 +1,159 @@
+worker_processes 4;
+
+events {
+
+  worker_connections 1024;
+}
+
+# Rendered by the nginx image at start-up (envsubst, NGINX_ENVSUBST_FILTER=^ADMIN_):
+# ${ADMIN_KNOCK_SECRET} comes from conf/nginx/admin-knock.env. Never commit it.
+
+http {
+
+  # ---------------------------------------------------------------------------
+  # Admin access = client IP in admin-allow.conf AND the "knock" cookie, which
+  # is only handed out at /<ADMIN_KNOCK_SECRET> to allowlisted IPs. Everyone
+  # else gets nginx's 404 for /admin, /admin-mfa and every non-public API route.
+  # CTFd login and the admin_mfa plugin (TOTP) still apply behind this.
+  # ---------------------------------------------------------------------------
+
+  # The knock secret is a map key (up to 128 chars); the default 64-byte bucket
+  # makes nginx refuse to start with secrets longer than ~50 chars.
+  map_hash_bucket_size 256;
+
+  # Allowlisted admin networks (git-ignored; see admin-allow.conf.example).
+  # Uses the TCP peer address only: X-Forwarded-For cannot spoof it.
+  geo $admin_net {
+    default 0;
+    include /etc/nginx/admin-allow.conf;
+  }
+
+  map $cookie_admin_knock $admin_knock {
+    default 0;
+    "${ADMIN_KNOCK_SECRET}" 1;
+  }
+
+  map "$admin_net$admin_knock" $is_admin_client {
+    default 0;
+    "11"    1;
+  }
+
+  # Player API allowlist: exactly what the React frontend calls (frontend/src).
+  # Add a line here when the frontend starts using a new route.
+  map "$request_method:$uri" $public_api {
+    default 0;
+    "~^(GET|HEAD):/api/v1/challenges/?$"                1;
+    "~^(GET|HEAD):/api/v1/challenges/[0-9]+/?$"         1;
+    "~^(GET|HEAD):/api/v1/challenges/[0-9]+/solves/?$"  1;
+    "~^POST:/api/v1/challenges/attempt/?$"              1;
+    "~^(GET|HEAD):/api/v1/scoreboard/?$"                1;
+    "~^(GET|HEAD):/api/v1/teams/me/?$"                  1;
+    "~^(GET|HEAD):/api/v1/teams/me/solves/?$"           1;
+    "~^(GET|HEAD):/api/v1/users/me/?$"                  1;
+    "~^(GET|HEAD):/api/v1/users/[0-9]+/?$"              1;
+  }
+
+  # nginx checks the normalised $uri but forwards the raw request URI, so
+  # refuse raw API paths that normalise differently (dot segments, encoded
+  # slashes/dots/backslashes, doubled slashes). Real clients never send these.
+  map $request_uri $api_uri_suspicious {
+    default 0;
+    "~*(/\.\.?(/|\?|$)|%2e|%2f|%5c|\\|//)" 1;
+  }
+
+  map "$api_uri_suspicious$public_api$is_admin_client" $api_denied {
+    default 1;
+    "010"   0;
+    "001"   0;
+    "011"   0;
+  }
+
+  # Strict CSP everywhere. The CTFd admin panel (/admin) cannot run under it:
+  # its templates rely on inline <script> blocks, eval() (challenge-type forms),
+  # new Function() (template engine), inline style attributes and data: images.
+  map $uri $content_security_policy {
+    default     "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+    ~^/admin(/|$) "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  }
+
+  # Configuration containing list of application servers
+  upstream app_servers {
+
+    server ctfd:8000;
+  }
+
+  server {
+
+    listen 80;
+
+    server_tokens off;
+    proxy_hide_header Server;
+
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy $content_security_policy always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    gzip on;
+
+    client_max_body_size 300M;
+
+    proxy_redirect off;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host $server_name;
+    # Strip X-Forwarded-Prefix header
+    proxy_set_header X-Forwarded-Prefix "";
+
+    # Knock: allowlisted IPs get the admin cookie, then go to /admin.
+    location = /${ADMIN_KNOCK_SECRET} {
+      if ($admin_net = 0) {
+        return 404;
+      }
+      add_header Set-Cookie "admin_knock=${ADMIN_KNOCK_SECRET}; Path=/; Max-Age=43200; HttpOnly; Secure; SameSite=Strict" always;
+      add_header Cache-Control "no-store" always;
+      return 302 /admin;
+    }
+
+    # Admin panel and MFA pages: admin clients only.
+    location ~ ^/admin(-mfa)?(/|$) {
+      if ($is_admin_client = 0) {
+        return 404;
+      }
+      proxy_pass http://app_servers;
+    }
+
+    # API: public allowlist for players, everything else for admin clients only.
+    location ^~ /api/ {
+      if ($api_denied) {
+        return 404;
+      }
+      proxy_pass http://app_servers;
+    }
+
+    # Handle Server Sent Events for Notifications
+    location /events {
+
+      proxy_pass http://app_servers;
+      # Setting any proxy_set_header here drops the inherited ones: repeat them.
+      proxy_set_header Connection '';
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Host $server_name;
+      proxy_set_header X-Forwarded-Prefix "";
+      proxy_http_version 1.1;
+      chunked_transfer_encoding off;
+      proxy_buffering off;
+      proxy_cache off;
+    }
+
+    # Proxy connections to the application servers
+    location / {
+
+      proxy_pass http://app_servers;
+    }
+  }
+}

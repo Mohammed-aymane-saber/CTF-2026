@@ -75,7 +75,7 @@ jobs:
           cache-dependency-path: CTF/development.txt
 
       - name: Install backend and test dependencies
-        run: python -m pip install -r development.txt
+        run: python -m pip install -r development.txt -r CTFd/plugins/admin_mfa/requirements.txt
 
       - name: Run backend tests
         run: >-
@@ -130,6 +130,15 @@ jobs:
 
       # ZAP runs here, against the image built above, so the CTFd image is
       # built once per run and no image artifact has to be transferred.
+      # nginx refuses to start without an admin knock secret and allowlist.
+      # CI uses a random per-run secret and the example allowlist; nothing secret is committed.
+      - name: Generate nginx admin access config
+        if: matrix.name == 'ctfd'
+        run: |
+          umask 077
+          echo "ADMIN_KNOCK_SECRET=$(openssl rand -hex 32)" > CTF/conf/nginx/admin-knock.env
+          cp CTF/conf/nginx/admin-allow.conf.example CTF/conf/nginx/admin-allow.conf
+
       - name: Start local CTFd environment from built image
         if: matrix.name == 'ctfd'
         run: docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml up -d --no-build
@@ -146,6 +155,11 @@ jobs:
           done
           docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml logs --no-color
           exit 1
+
+      # Runs after "Wait for CTFd", so this step only measures the checks (~1 s).
+      - name: Check nginx access rules
+        if: matrix.name == 'ctfd'
+        run: CTF/scripts/check-nginx-access.sh
 
       - name: Run OWASP ZAP baseline scan
         if: matrix.name == 'ctfd'

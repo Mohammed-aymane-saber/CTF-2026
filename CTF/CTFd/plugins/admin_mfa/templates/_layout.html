@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+  <div class="container">
+    <h1>Admin verification</h1>
+  </div>
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col-md-6 offset-md-3">
+      {% if error %}
+      <div class="alert alert-danger" role="alert">{{ error }}</div>
+      {% endif %}
+      {% block mfa %}{% endblock %}
+    </div>
+  </div>
+</div>
+{% endblock %}

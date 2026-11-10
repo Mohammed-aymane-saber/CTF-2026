@@ -1,0 +1,16 @@
+{% extends "plugins/admin_mfa/templates/_layout.html" %}
+
+{% block mfa %}
+<p>Admin accounts must use two-factor authentication. Scan this QR code with an authenticator app (Google Authenticator, Aegis, 2FAS…), then enter the 6-digit code it shows.</p>
+<div class="text-center my-3 admin-mfa-qr">{{ qr }}</div>
+<p>Can't scan? Enter this key manually:</p>
+<p><code class="user-select-all">{{ secret }}</code></p>
+<form method="post" accept-charset="utf-8" autocomplete="off">
+  <div class="mb-3">
+    <label for="code" class="form-label">6-digit code</label>
+    <input class="form-control" id="code" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" required autofocus>
+  </div>
+  <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+  <button type="submit" class="btn btn-primary w-100">Enable two-factor authentication</button>
+</form>
+{% endblock %}

@@ -46,9 +46,22 @@ Les appels API restent relatifs au domaine courant. Le proxy de développement e
 
 ## Sécurité
 
-- Aucun secret ne doit être commité ; utiliser `.env` localement.
+- Aucun secret ne doit être commité ; utiliser `.env` localement (jamais dans `CTF/` : Flask le charge automatiquement dans CTFd, voir [docs/admin-access.md](docs/admin-access.md)).
 - Le lockfile est versionné et les installations reproductibles utilisent `npm ci`.
 - Le HTML provenant de CTFd est assaini avant rendu dans l'interface.
 - Les polices du frontend sont embarquées localement.
+
+### Accès administrateur
+
+Le panneau admin est protégé par quatre couches :
+
+1. **Réseau autorisé** (liste blanche Nginx)
+2. **URL secrète** (« knock »)
+3. **Mot de passe**
+4. **Code TOTP** (MFA, plugin `admin_mfa`)
+
+Sans les deux premières, `/admin` et l'API admin renvoient un 404. Les joueurs ne sont pas concernés.
+
+Mise en place, utilisation quotidienne, ajout d'admins, téléphone perdu, dépannage et checklist de production : **[docs/admin-access.md](docs/admin-access.md)**.
 
 Le déploiement complet, la séparation public/admin et l'orchestration de production seront documentés dans les phases suivantes.

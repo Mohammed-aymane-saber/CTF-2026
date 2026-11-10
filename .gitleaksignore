@@ -1,0 +1,4 @@
+# False positive, already in pushed history: RFC 6238 Appendix B public TOTP test
+# key ("12345678901234567890" in base32), not a credential. The literal was
+# replaced by a runtime-built value in a later commit.
+ba7a1d237f7292a986c45b48128baf9d764e78d7:CTF/tests/plugins/admin_mfa/test_review_fixes.py:generic-api-key:9

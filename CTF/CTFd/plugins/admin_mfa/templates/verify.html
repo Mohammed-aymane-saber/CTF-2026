@@ -1,0 +1,25 @@
+{% extends "plugins/admin_mfa/templates/_layout.html" %}
+
+{% block mfa %}
+<form method="post" accept-charset="utf-8" autocomplete="off">
+  <div class="mb-3">
+    <label for="code" class="form-label">Code from your authenticator app</label>
+    <input class="form-control" id="code" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" required autofocus>
+  </div>
+  <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+  <button type="submit" class="btn btn-primary w-100">Verify</button>
+</form>
+<hr>
+<details>
+  <summary>Lost your device? Use a recovery code</summary>
+  <form method="post" accept-charset="utf-8" autocomplete="off" class="mt-3">
+    <div class="mb-3">
+      <label for="recovery" class="form-label">Recovery code</label>
+      <input class="form-control" id="recovery" name="recovery" placeholder="XXXXX-XXXXX" maxlength="16" required>
+    </div>
+    <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+    <button type="submit" class="btn btn-secondary w-100">Use recovery code</button>
+  </form>
+</details>
+<p class="mt-3"><a href="{{ url_for('auth.logout') }}">Log out</a></p>
+{% endblock %}
