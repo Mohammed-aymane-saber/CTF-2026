@@ -143,15 +143,6 @@ jobs:
         if: matrix.name == 'ctfd'
         run: docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml up -d --no-build
 
-      - name: Check nginx access rules
-        if: matrix.name == 'ctfd'
-        run: |
-          for attempt in {1..60}; do
-            curl --fail --silent http://localhost/login > /dev/null && break
-            sleep 5
-          done
-          CTF/scripts/check-nginx-access.sh
-
       - name: Wait for CTFd
         if: matrix.name == 'ctfd'
         shell: bash
@@ -164,6 +155,11 @@ jobs:
           done
           docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml logs --no-color
           exit 1
+
+      # Runs after "Wait for CTFd", so this step only measures the checks (~1 s).
+      - name: Check nginx access rules
+        if: matrix.name == 'ctfd'
+        run: CTF/scripts/check-nginx-access.sh
 
       - name: Run OWASP ZAP baseline scan
         if: matrix.name == 'ctfd'

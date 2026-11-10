@@ -24,7 +24,7 @@ bad() { fail=$((fail + 1)); printf '  FAIL  %s  (%s)\n' "$1" "$2"; }
 request() {
   local method="$1" path="$2"; shift 2
   local tmp; tmp="$(mktemp -d)"
-  status="$(curl -s --path-as-is -X "$method" -o "$tmp/body" -D "$tmp/headers" \
+  status="$(curl -s --max-time 10 --path-as-is -X "$method" -o "$tmp/body" -D "$tmp/headers" \
     -w '%{http_code}' "$@" "$BASE$path")"
   body="$(cat "$tmp/body")"; headers="$(cat "$tmp/headers")"; rm -rf "$tmp"
 }
