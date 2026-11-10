@@ -46,58 +46,22 @@ Les appels API restent relatifs au domaine courant. Le proxy de développement e
 
 ## Sécurité
 
-- Aucun secret ne doit être commité ; utiliser `.env` localement.
+- Aucun secret ne doit être commité ; utiliser `.env` localement (jamais dans `CTF/` : Flask le charge automatiquement dans CTFd, voir [docs/admin-access.md](docs/admin-access.md)).
 - Le lockfile est versionné et les installations reproductibles utilisent `npm ci`.
 - Le HTML provenant de CTFd est assaini avant rendu dans l'interface.
 - Les polices du frontend sont embarquées localement.
 
-### MFA administrateur (TOTP)
+### Accès administrateur
 
-Le plugin `CTF/CTFd/plugins/admin_mfa/` impose un second facteur (code à 6 chiffres d'une application d'authentification) à tout compte admin, avant toute page `/admin` ou appel `/api/v1`. Les joueurs ne sont pas concernés.
+Le panneau admin est protégé par quatre couches :
 
-- **Premier login admin :** redirection vers `/admin-mfa/setup` (QR code + clé manuelle), puis affichage unique de 10 codes de récupération.
-- **Logins suivants :** code demandé sur `/admin-mfa/verify` (10 essais / 5 min / IP).
-- **Jetons API admin :** refusés (403). Les jetons des joueurs fonctionnent toujours.
-- **Clé de chiffrement :** définir `ADMIN_MFA_ENCRYPTION_KEY` en production :
-  ```bash
-  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-  ```
-  Sans elle, une clé est dérivée de `SECRET_KEY` (HKDF) et un avertissement est journalisé. Changer la clé rend les enrôlements existants illisibles : il faut alors réinitialiser les admins.
-- **Téléphone perdu :** `docker compose exec ctfd python manage.py admin-mfa-reset <email>`. L'admin se réenrôle au prochain login.
-- L'horloge du serveur doit être synchronisée (NTP) : la tolérance n'est que de ±30 s.
-- Ne jamais activer `SAFE_MODE` en production : il désactive tous les plugins, y compris celui-ci.
-- `/admin-mfa/*` doit rester derrière l'accès admin privé, jamais dans la liste blanche du Nginx public.
+1. **Réseau autorisé** (liste blanche Nginx)
+2. **URL secrète** (« knock »)
+3. **Mot de passe**
+4. **Code TOTP** (MFA, plugin `admin_mfa`)
 
-### Accès admin restreint (Nginx)
+Sans les deux premières, `/admin` et l'API admin renvoient un 404. Les joueurs ne sont pas concernés.
 
-Nginx (`CTF/conf/nginx/http.conf.template`) ne laisse passer `/admin`, `/admin-mfa` et toute l'API admin qu'aux clients qui remplissent **deux conditions** :
-
-1. **Réseau autorisé :** l'IP du client figure dans `CTF/conf/nginx/admin-allow.conf` (Tailscale, IP fixes…).
-2. **Cookie « knock » :** obtenu en visitant `http://<hôte>/<ADMIN_KNOCK_SECRET>` depuis un réseau autorisé. Le cookie est valable 12 h.
-
-Tous les autres reçoivent un **404**, comme si le panneau n'existait pas. Le login CTFd et la MFA s'appliquent ensuite.
-
-**API publique (joueurs) :** seules les routes appelées par le frontend React sont ouvertes à tous :
-- `GET /api/v1/challenges`, `/challenges/<id>`, `/challenges/<id>/solves`
-- `POST /api/v1/challenges/attempt`
-- `GET /api/v1/scoreboard`
-- `GET /api/v1/teams/me`, `/teams/me/solves`
-- `GET /api/v1/users/me`, `/users/<id>`
-
-Toute autre route ou méthode `/api/v1` est réservée aux clients admin. Si le frontend utilise une nouvelle route, l'ajouter dans la `map $public_api`.
-
-**Mise en place (fichiers git-ignorés, jamais commités) :**
-
-```bash
-cd CTF
-python3 -c "import secrets; print('ADMIN_KNOCK_SECRET=' + secrets.token_urlsafe(32))" > conf/nginx/admin-knock.env
-cp conf/nginx/admin-allow.conf.example conf/nginx/admin-allow.conf   # puis l'adapter
-docker compose up -d --force-recreate nginx
-```
-
-- Sans secret valide (24 à 128 caractères `A-Z a-z 0-9 _ -`) ou sans liste d'accès, Nginx **refuse de démarrer** (`FATAL:` dans `docker compose logs nginx`).
-- Après chaque modification de ces fichiers ou du template : `docker compose up -d --force-recreate nginx` (un simple reload ne suffit pas).
-- Vérifier les règles : `CTF/scripts/check-nginx-access.sh` (la CI l'exécute aussi).
-- Le port 8000 (CTFd direct, sans Nginx) n'écoute que sur `127.0.0.1`.
+Mise en place, utilisation quotidienne, ajout d'admins, téléphone perdu, dépannage et checklist de production : **[docs/admin-access.md](docs/admin-access.md)**.
 
 Le déploiement complet, la séparation public/admin et l'orchestration de production seront documentés dans les phases suivantes.
