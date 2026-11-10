@@ -1,0 +1,10 @@
+{% extends "plugins/admin_mfa/templates/_layout.html" %}
+
+{% block mfa %}
+<div class="alert alert-success" role="alert">Two-factor authentication is enabled.</div>
+<p><strong>Save these recovery codes somewhere safe.</strong> Each one works once if you lose your authenticator. They will not be shown again.</p>
+<ul class="list-unstyled font-monospace fs-5 user-select-all">
+  {% for c in codes %}<li>{{ c }}</li>{% endfor %}
+</ul>
+<a class="btn btn-primary w-100" href="{{ url_for('admin.view') }}">Continue to admin</a>
+{% endblock %}
