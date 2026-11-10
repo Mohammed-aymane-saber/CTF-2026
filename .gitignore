@@ -14,3 +14,7 @@ uploads/
 terraform.tfstate*
 .terraform/
 .DS_Store
+
+# nginx admin allowlist (local, per deployment)
+CTF/conf/nginx/admin-allow.conf
+CTF/conf/nginx/admin-knock.env

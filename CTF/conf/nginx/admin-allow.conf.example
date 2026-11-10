@@ -1,0 +1,13 @@
+# Networks allowed to reach /admin, /admin-mfa and the admin API.
+# Copy to admin-allow.conf (git-ignored) and keep only what you need.
+# Format: <IP or CIDR> 1;   nginx sees the real TCP peer address (no proxy in front).
+
+# Tailscale (admins reach the server through its tailnet address)
+100.64.0.0/10 1;
+
+# Local development: requests from the host arrive from the Docker bridge gateway
+127.0.0.1    1;
+172.16.0.0/12 1;
+
+# Fixed admin IPs
+# 203.0.113.10 1;

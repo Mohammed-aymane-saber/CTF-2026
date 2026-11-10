@@ -130,9 +130,27 @@ jobs:
 
       # ZAP runs here, against the image built above, so the CTFd image is
       # built once per run and no image artifact has to be transferred.
+      # nginx refuses to start without an admin knock secret and allowlist.
+      # CI uses a random per-run secret and the example allowlist; nothing secret is committed.
+      - name: Generate nginx admin access config
+        if: matrix.name == 'ctfd'
+        run: |
+          umask 077
+          echo "ADMIN_KNOCK_SECRET=$(openssl rand -hex 32)" > CTF/conf/nginx/admin-knock.env
+          cp CTF/conf/nginx/admin-allow.conf.example CTF/conf/nginx/admin-allow.conf
+
       - name: Start local CTFd environment from built image
         if: matrix.name == 'ctfd'
         run: docker compose -f CTF/docker-compose.yml -f CTF/docker-compose.ci.yml up -d --no-build
+
+      - name: Check nginx access rules
+        if: matrix.name == 'ctfd'
+        run: |
+          for attempt in {1..60}; do
+            curl --fail --silent http://localhost/login > /dev/null && break
+            sleep 5
+          done
+          CTF/scripts/check-nginx-access.sh
 
       - name: Wait for CTFd
         if: matrix.name == 'ctfd'

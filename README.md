@@ -68,4 +68,36 @@ Le plugin `CTF/CTFd/plugins/admin_mfa/` impose un second facteur (code à 6 chif
 - Ne jamais activer `SAFE_MODE` en production : il désactive tous les plugins, y compris celui-ci.
 - `/admin-mfa/*` doit rester derrière l'accès admin privé, jamais dans la liste blanche du Nginx public.
 
+### Accès admin restreint (Nginx)
+
+Nginx (`CTF/conf/nginx/http.conf.template`) ne laisse passer `/admin`, `/admin-mfa` et toute l'API admin qu'aux clients qui remplissent **deux conditions** :
+
+1. **Réseau autorisé :** l'IP du client figure dans `CTF/conf/nginx/admin-allow.conf` (Tailscale, IP fixes…).
+2. **Cookie « knock » :** obtenu en visitant `http://<hôte>/<ADMIN_KNOCK_SECRET>` depuis un réseau autorisé. Le cookie est valable 12 h.
+
+Tous les autres reçoivent un **404**, comme si le panneau n'existait pas. Le login CTFd et la MFA s'appliquent ensuite.
+
+**API publique (joueurs) :** seules les routes appelées par le frontend React sont ouvertes à tous :
+- `GET /api/v1/challenges`, `/challenges/<id>`, `/challenges/<id>/solves`
+- `POST /api/v1/challenges/attempt`
+- `GET /api/v1/scoreboard`
+- `GET /api/v1/teams/me`, `/teams/me/solves`
+- `GET /api/v1/users/me`, `/users/<id>`
+
+Toute autre route ou méthode `/api/v1` est réservée aux clients admin. Si le frontend utilise une nouvelle route, l'ajouter dans la `map $public_api`.
+
+**Mise en place (fichiers git-ignorés, jamais commités) :**
+
+```bash
+cd CTF
+python3 -c "import secrets; print('ADMIN_KNOCK_SECRET=' + secrets.token_urlsafe(32))" > conf/nginx/admin-knock.env
+cp conf/nginx/admin-allow.conf.example conf/nginx/admin-allow.conf   # puis l'adapter
+docker compose up -d --force-recreate nginx
+```
+
+- Sans secret valide (24 à 128 caractères `A-Z a-z 0-9 _ -`) ou sans liste d'accès, Nginx **refuse de démarrer** (`FATAL:` dans `docker compose logs nginx`).
+- Après chaque modification de ces fichiers ou du template : `docker compose up -d --force-recreate nginx` (un simple reload ne suffit pas).
+- Vérifier les règles : `CTF/scripts/check-nginx-access.sh` (la CI l'exécute aussi).
+- Le port 8000 (CTFd direct, sans Nginx) n'écoute que sur `127.0.0.1`.
+
 Le déploiement complet, la séparation public/admin et l'orchestration de production seront documentés dans les phases suivantes.

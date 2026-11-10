@@ -17,3 +17,7 @@ CTFd/uploads/**/*
 **/__pycache__
 .venv*
 venv*
+# nginx admin access secrets (never in the CTFd image)
+.env
+conf/nginx/admin-knock.env
+conf/nginx/admin-allow.conf
