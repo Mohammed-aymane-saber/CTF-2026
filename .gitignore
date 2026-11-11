@@ -13,6 +13,8 @@ dist/
 uploads/
 terraform.tfstate*
 .terraform/
+**/terraform.tfvars
+**/*.tfplan
 .DS_Store
 
 # nginx admin allowlist (local, per deployment)

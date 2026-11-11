@@ -1,0 +1,7 @@
+aws_region  = "eu-west-3"
+aws_profile = "eclipse"
+
+frontend_instance_type = "t3.small"
+backend_instance_type  = "m7i-flex.large"
+ssh_cidr               = ""
+enable_nat_gateway     = true
