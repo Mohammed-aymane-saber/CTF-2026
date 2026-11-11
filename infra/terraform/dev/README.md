@@ -38,9 +38,12 @@ aws ssm start-session --target <backend-instance-id> --profile eclipse --region 
 
 ## Cost warning
 
-The NAT Gateway is enabled because the private instance needs outbound access
-for Docker bootstrap and SSM. NAT Gateway is billed separately. Destroy the
-stack when finished:
+The default configuration uses a free S3 Gateway Endpoint and private SSM
+Interface Endpoints, so the instances do not require unrestricted Internet
+egress. Interface endpoints are billed separately. The NAT Gateway remains
+available as an optional fallback through `enable_nat_gateway`, but it is
+disabled by default. ECR endpoints can be added later if images are stored in
+Amazon ECR. Destroy the stack when finished:
 
 ```powershell
 terraform destroy
@@ -48,5 +51,6 @@ terraform destroy
 
 The frontend uses an explicit Elastic IP instead of automatic public IP
 assignment, and both instances require IMDSv2 tokens. Root EBS volumes are
-encrypted with AWS-managed EBS encryption, while the uploads bucket uses a
-dedicated customer-managed KMS key.
+encrypted with AWS-managed EBS encryption, while the uploads bucket uses the
+AWS-managed `aws/s3` KMS key. Instance egress is limited to the VPC CIDR and
+the backend is administered through the private SSM endpoints.

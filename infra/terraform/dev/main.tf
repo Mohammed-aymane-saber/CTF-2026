@@ -111,35 +111,27 @@ resource "aws_security_group" "frontend" {
   }
 
   egress {
-    description = "HTTP package and image downloads"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "HTTPS package, image and SSM traffic"
+    description = "HTTPS to private VPC endpoints"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 
   egress {
-    description = "DNS resolution"
+    description = "DNS resolution through the VPC resolver"
     from_port   = 53
     to_port     = 53
     protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 
   egress {
-    description = "TCP DNS resolution"
+    description = "TCP DNS resolution through the VPC resolver"
     from_port   = 53
     to_port     = 53
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 }
 
@@ -164,36 +156,92 @@ resource "aws_security_group" "backend" {
   }
 
   egress {
-    description = "HTTP package and image downloads through NAT"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "HTTPS package, image and SSM traffic through NAT"
+    description = "HTTPS to private VPC endpoints"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 
   egress {
-    description = "DNS resolution through NAT"
+    description = "DNS resolution through the VPC resolver"
     from_port   = 53
     to_port     = 53
     protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 
   egress {
-    description = "TCP DNS resolution through NAT"
+    description = "TCP DNS resolution through the VPC resolver"
     from_port   = 53
     to_port     = 53
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
+}
+
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "eclipse-vpc-endpoints-${var.environment}"
+  description = "Private interface endpoints for SSM and container services"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "HTTPS from the frontend instance"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.frontend.id]
+  }
+
+  ingress {
+    description     = "HTTPS from the backend instance"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.backend.id]
+  }
+
+  egress {
+    description = "Endpoint responses inside the VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.public.id, aws_route_table.private.id]
+}
+
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.ssm"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private.id]
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "ssmmessages" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.ssmmessages"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private.id]
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "ec2messages" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.ec2messages"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private.id]
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
 }
 
 resource "aws_s3_bucket" "uploads" {
@@ -217,15 +265,8 @@ resource "aws_s3_bucket_versioning" "uploads" {
   }
 }
 
-resource "aws_kms_key" "uploads" {
-  description             = "KMS key for Eclipse CTF challenge uploads"
-  deletion_window_in_days = 7
-  enable_key_rotation     = true
-}
-
-resource "aws_kms_alias" "uploads" {
-  name          = "alias/eclipse-ctf-uploads-${var.environment}"
-  target_key_id = aws_kms_key.uploads.key_id
+data "aws_kms_key" "s3" {
+  key_id = "alias/aws/s3"
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "uploads" {
@@ -233,7 +274,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "uploads" {
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.uploads.arn
+      kms_master_key_id = data.aws_kms_key.s3.arn
       sse_algorithm     = "aws:kms"
     }
 
@@ -281,7 +322,7 @@ resource "aws_iam_role_policy" "backend_s3" {
         "kms:Encrypt",
         "kms:GenerateDataKey"
       ]
-      Resource = aws_kms_key.uploads.arn
+      Resource = data.aws_kms_key.s3.arn
     }]
   })
 }

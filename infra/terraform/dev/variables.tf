@@ -32,7 +32,7 @@ variable "ssh_cidr" {
 }
 
 variable "enable_nat_gateway" {
-  description = "Needed for private EC2 bootstrap and SSM without VPC endpoints."
+  description = "Optional fallback internet egress. Keep disabled when using VPC endpoints."
   type        = bool
-  default     = true
+  default     = false
 }
