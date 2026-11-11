@@ -31,7 +31,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.20.1.0/24"
   availability_zone       = data.aws_availability_zones.available.names[0]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 }
 
 resource "aws_subnet" "private" {
@@ -111,9 +111,34 @@ resource "aws_security_group" "frontend" {
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "HTTP package and image downloads"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "HTTPS package, image and SSM traffic"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS resolution"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "TCP DNS resolution"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
@@ -139,9 +164,34 @@ resource "aws_security_group" "backend" {
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "HTTP package and image downloads through NAT"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "HTTPS package, image and SSM traffic through NAT"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS resolution through NAT"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "TCP DNS resolution through NAT"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
@@ -164,6 +214,30 @@ resource "aws_s3_bucket_versioning" "uploads" {
   bucket = aws_s3_bucket.uploads.id
   versioning_configuration {
     status = "Enabled"
+  }
+}
+
+resource "aws_kms_key" "uploads" {
+  description             = "KMS key for Eclipse CTF challenge uploads"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+}
+
+resource "aws_kms_alias" "uploads" {
+  name          = "alias/eclipse-ctf-uploads-${var.environment}"
+  target_key_id = aws_kms_key.uploads.key_id
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.uploads.arn
+      sse_algorithm     = "aws:kms"
+    }
+
+    bucket_key_enabled = true
   }
 }
 
@@ -199,6 +273,15 @@ resource "aws_iam_role_policy" "backend_s3" {
       Effect   = "Allow"
       Action   = ["s3:ListBucket"]
       Resource = aws_s3_bucket.uploads.arn
+    }, {
+      Effect = "Allow"
+      Action = [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:GenerateDataKey"
+      ]
+      Resource = aws_kms_key.uploads.arn
     }]
   })
 }
@@ -223,11 +306,29 @@ resource "aws_instance" "frontend" {
   instance_type               = var.frontend_instance_type
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.frontend.id]
-  associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.ec2.name
   user_data                   = local.bootstrap
 
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  root_block_device {
+    encrypted   = true
+    volume_type = "gp3"
+  }
+
   tags = { Name = "eclipse-frontend-${var.environment}" }
+}
+
+resource "aws_eip" "frontend" {
+  domain = "vpc"
+}
+
+resource "aws_eip_association" "frontend" {
+  allocation_id = aws_eip.frontend.id
+  instance_id   = aws_instance.frontend.id
 }
 
 resource "aws_instance" "backend" {
@@ -237,6 +338,16 @@ resource "aws_instance" "backend" {
   vpc_security_group_ids = [aws_security_group.backend.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
   user_data              = local.bootstrap
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  root_block_device {
+    encrypted   = true
+    volume_type = "gp3"
+  }
 
   tags = { Name = "eclipse-backend-${var.environment}" }
 }

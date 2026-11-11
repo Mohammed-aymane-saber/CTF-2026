@@ -1,8 +1,8 @@
 # Eclipse CTF - AWS foundation
 
-Creates a public frontend EC2, a private backend EC2, SSM IAM access and a
-private versioned S3 bucket for challenge files. The EC2 instances are only
-bootstrapped with Docker; application deployment comes next.
+Creates a public frontend EC2 with a stable Elastic IP, a private backend EC2,
+SSM IAM access and a private versioned S3 bucket for challenge files. The EC2
+instances are only bootstrapped with Docker; application deployment comes next.
 
 The default instance type is `m7i-flex.large` (2 vCPU, 8 GiB RAM). AWS lists it
 as Free Tier eligible for accounts created on or after July 15, 2025, subject
@@ -45,3 +45,8 @@ stack when finished:
 ```powershell
 terraform destroy
 ```
+
+The frontend uses an explicit Elastic IP instead of automatic public IP
+assignment, and both instances require IMDSv2 tokens. Root EBS volumes are
+encrypted with AWS-managed EBS encryption, while the uploads bucket uses a
+dedicated customer-managed KMS key.
